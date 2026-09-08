@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Tue 9/8** | Testing, both ends: a unit test on one PHP function, and an end-to-end test that drives a browser. In-class exercise. |
+| **Tue 9/8** | Testing at three levels, on one small PHP app: use the app, read PHPUnit tests, write a prompt that gets an AI to write one, then API tests and a browser test with Playwright. Everything runs from one Docker image — [start it once before class](../inclass/wk3/README.md#before-class) so the 2 GB download is not in the room. In-class exercise. |
 | **Fri 9/11** | Continuous integration. **Homework 1 due; Homework 2 assigned. Teams form.** |
 
 ---
@@ -22,7 +22,7 @@ The question for the week: **is a test a verification of code, or a specificatio
 |---|---|---|
 | 1 | About Automated Tests | what a test is for, and why "it works when I click it" does not count |
 | 2 | Introduction to PHPUnit | your first real test file: arrange, act, assert, and reading a failure |
-| 3 | Case Study | Read about the case study. We will use it in the homework. |
+| 7 | Case Study | Read about the case study. We will use it in the homework. |
 
 
 
@@ -47,7 +47,7 @@ Argues that most people test the wrong unit and end up with suites that block ev
 
 | | Due |
 |---|---|
-| In-class exercise | Tue 9/8, 11:59 PM |
+| In-class exercise | Tue 9/8, before you leave class |
 | **Homework 1** — the LAMP stack | **Fri 9/11, 11:59 PM** |
 
 Friday is a lab: bring your laptop with Docker Desktop running and Homework 1 in a state you are willing to show someone. **Teams form Friday**, and it is the last day to add or drop without a W.

@@ -1,0 +1,77 @@
+# One image (see Dockerfile), four ways to run it.
+#
+#   docker compose watch                  the app, for you, at http://localhost:8080
+#   docker compose run --rm unit          PHPUnit        tests/unit
+#   docker compose run --rm api           Playwright     tests/api   (no browser)
+#   docker compose run --rm e2e           Playwright     tests/e2e   (Chromium)
+#   docker compose down                   stop  (add -v to wipe the data too)
+#
+# Edits to src/, public/ and tests/ show up without a rebuild -- watch syncs
+# them into the app; the test runners bind-mount them. vendor/ and node_modules/
+# stay inside the image.
+
+x-app: &app
+  build: .
+  image: wk3-pantry
+  volumes:
+    - ./src:/app/src
+    - ./public:/app/public
+    - ./tests:/app/tests
+    - ./test-results:/app/test-results
+
+services:
+  # The app. Long-running, so it is started with `docker compose watch`: edit a
+  # file under src/ or public/ and Compose copies it into the running container
+  # (you will see "Syncing"). Change something the image is built from and it
+  # rebuilds instead ("Rebuilding"). Same idea as Homework 1.
+  web:
+    build: .
+    image: wk3-pantry
+    environment:
+      PANTRY_DB: /app/data/pantry.sqlite   # the tests point this at a throwaway file instead
+    volumes:
+      - pantry_data:/app/data       # a named volume, like the database in Homework 1
+    ports:
+      - "${APP_PORT:-8080}:80"
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: sync
+          path: ./public
+          target: /app/public
+        - action: rebuild
+          path: ./composer.json
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./phpunit.xml
+        - action: rebuild
+          path: ./playwright.config.js
+        - action: rebuild
+          path: ./docker/apache.conf
+        - action: rebuild
+          path: ./Dockerfile
+
+  # The test runners. One-shot: `docker compose run --rm <name>` does the job and
+  # exits, so there is nothing for watch to keep in sync. They bind-mount the
+  # source instead (see x-app above) and always see your latest edit.
+  # `profiles: [test]` keeps `docker compose watch` from starting them.
+  unit:
+    <<: *app
+    profiles: [test]
+    command: ./vendor/bin/phpunit --testdox    # --testdox: print every test as its sentence
+
+  api:
+    <<: *app
+    profiles: [test]
+    command: npx playwright test tests/api
+
+  e2e:
+    <<: *app
+    profiles: [test]
+    command: npx playwright test tests/e2e
+
+volumes:
+  pantry_data:

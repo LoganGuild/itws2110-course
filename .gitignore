@@ -1,1 +1,4 @@
 .DS_Store
+
+# Instructor-only notes live beside the material but never publish.
+INSTRUCTOR*.md

@@ -19,6 +19,16 @@
 
 Assignments are graded by automated tests. You run them yourself before submitting, so you know your score in advance.
 
+**Docker, all semester, three commands.** Every app in this course ships with a `docker-compose.yml`, and you drive it the same way every time:
+
+| You want to | You type |
+|---|---|
+| Bring the app up and work on it | `docker compose watch` — starts it, then syncs your edits in as you save |
+| Run a one-shot job: tests, a migration, a shell | `docker compose run --rm <service>` |
+| Stop it / wipe its data and start over | `docker compose down` / `docker compose down -v` |
+
+(`Ctrl+C` in the watch terminal stops the watching, not the app. `down` stops the app.)
+
 ---
 
 ## In this repo
