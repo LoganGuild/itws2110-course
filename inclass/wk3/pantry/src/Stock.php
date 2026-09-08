@@ -53,9 +53,15 @@ final class Stock            // `final`: nothing may extend this class. Say what
     }
 
     /** Using some up. */
+    /** Using some up. */
     public function consume(float $quantity): void
     {
         $this->assertPositive($quantity);
+
+        if ($quantity > $this->amount) {
+            throw new InsufficientStockException('Not enough in stock');
+        }
+
         $this->amount -= $quantity;
     }
 
@@ -63,10 +69,9 @@ final class Stock            // `final`: nothing may extend this class. Say what
      * `private`: only code inside this class can call it. It is a helper, not
      * part of what the class promises to the outside world.
      */
-    private function assertPositive(float $quantity): void
-    {
-        if ($quantity <= 0) {
-            throw new \InvalidArgumentException('Amount must be greater than zero');
+    $this->assertPositive($quantity);
+    if ($quantity > $this->amount) {
+    throw new InsufficientStockException('Not enough in stock');
         }
-    }
+    $this->amount -= $quantity;
 }

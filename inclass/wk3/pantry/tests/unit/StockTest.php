@@ -4,7 +4,7 @@
 // TestCase is PHPUnit's base class; every test class extends it.
 use App\Stock;
 use PHPUnit\Framework\TestCase;
-
+use App\InsufficientStockException;
 // Read these before you read src/Stock.php. Each method name is a sentence
 // that should be true of a Stock. Together they are the specification.
 //
@@ -110,5 +110,17 @@ final class StockTest extends TestCase
         $stock->consume(-2);                                        // act
     }
 
+    public function test_using_more_than_is_in_stock_is_refused_and_the_amount_does_not_change(): void
+    {
+    $stock = new Stock(2);
+
+    try {
+        $stock->consume(5);
+        $this->fail('Expected an InsufficientStockException');
+    } catch (\App\InsufficientStockException) {
+    }
+
+    $this->assertSame(2.0, $stock->amount());
+    }
     // Something is missing from this file. Part 2 is about finding it.
 }
