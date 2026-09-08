@@ -1,0 +1,247 @@
+# Example 6 — The same thing, declared once
+
+Example 5 took six commands in an exact order, and it still had a startup race. Here it
+is one file and one command — against a **different stack**, so that what you learn is
+about Compose and not about PHP.
+
+```
+example-6/
+├── docker-compose.yml
+└── simple-server/
+    ├── Dockerfile
+    ├── server.js          # Express + Mongoose: a visitors collection
+    └── package.json
+```
+
+Node and Express instead of Apache and PHP. MongoDB instead of MySQL. Every idea from
+Example 5 carries over unchanged.
+
+---
+
+## A — Run it
+
+```
+docker compose watch
+```
+
+Not `up` — **`watch`**. It builds, starts everything, and then stays in the foreground
+watching your source for changes. This is how you will run every Compose project from
+here on.
+
+Open <http://localhost:3000> in a browser — a JSON greeting. Then
+<http://localhost:3000/api/visitors> — an empty list. Reading from an API is just visiting
+a URL, and a browser is a perfectly good client for that.
+
+Writing to it needs a POST, which a browser's address bar cannot do. The request body is
+in `visitor.json`, so the command is identical on every operating system — nothing to
+quote, nothing to escape:
+
+```
+curl -X POST localhost:3000/api/visitors -H "Content-Type: application/json" -d "@visitor.json"
+```
+
+Refresh the visitors page in the browser. Ada is there.
+
+**On Windows:** type `curl.exe` — in PowerShell, bare `curl` is an alias for a different
+command. And keep the quotes around `"@visitor.json"`; an unquoted `@` is a PowerShell
+operator.
+
+Now edit `visitor.json`, run the command again, refresh. You just changed data in a
+database by editing a text file and sending it over HTTP. That is the whole idea of an
+API; the front end you build in week 12 does nothing more than this.
+
+## B — What Compose gave you that Example 5 did not
+
+Open `docker-compose.yml` beside Example 5's README. Every line maps to something you
+typed by hand there:
+
+| You typed in Example 5 | Compose line |
+|---|---|
+| `docker network create itwsnet` | *(nothing — one network per project, automatic)* |
+| `docker build -t ... ./web` | `build: ./simple-server` |
+| `docker run -d --name db --network itwsnet ...` | the `mongo:` service |
+| `docker run -d --name web --network itwsnet -p ...` | the `server:` service |
+| `host=db` | `mongodb://mongo:27017` — **the service name is the hostname** |
+| *(no `-p` on the database)* | *(no `ports:` on `mongo`)* |
+
+Then look at what is new. **The race from Example 5E is gone**:
+
+```yaml
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+    ...
+    depends_on:
+      mongo:
+        condition: service_healthy
+```
+
+`server` does not start until Mongo answers a ping. *Running* and *ready* are different
+claims, and only one of them is useful. Watch it:
+
+```
+docker compose ps
+```
+
+The `mongo` row says `(healthy)`, not just `Up`.
+
+## C — Edit code while it runs
+
+Leave `docker compose watch` running. Open `simple-server/server.js`, change the
+`message` string, save. In the watch terminal:
+
+```
+Syncing service "server" after 2 changes were detected
+ Container example-6-server-1 Restarting
+service(s) ["server"] restarted
+```
+
+`curl localhost:3000` again — your text. No rebuild, no manual restart, no bind mount.
+
+That is this block in `docker-compose.yml`:
+
+```yaml
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./simple-server
+          target: /app
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: ./simple-server/package.json
+```
+
+Two actions, for two different kinds of change:
+
+- **`sync+restart`** copies the changed file in, then restarts the process. Node loaded
+  `server.js` into memory when it started and will never look at the file again — so
+  copying alone would do nothing.
+- **`rebuild`** throws the container away and builds a new image. It fires on
+  `package.json`, because a new dependency means `npm install` has to run, and that only
+  happens during a build. No amount of file-copying can do it.
+
+Try the second one: add `"dotenv": "^16.0.0"` to `dependencies` in `package.json`, save,
+and watch a full rebuild instead of a sync.
+
+The Dockerfile is arranged for exactly this:
+
+```dockerfile
+COPY package*.json ./
+RUN npm install
+COPY . .
+```
+
+`package.json` is copied *before* the source. Change a line of `server.js` and the
+`npm install` layer is a cache hit; change a dependency and it re-runs. That is
+Example 2's layer caching, used deliberately.
+
+## D — Where the password lives
+
+Example 5 ended with a question: the database password was `root`, hardcoded in
+`index.php` and typed on the command line — *name two things wrong with that.* This
+section is the answer.
+
+Open `docker-compose.yml` and find the password. You cannot. What is there is this:
+
+```yaml
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-app}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-change_me}
+```
+
+and on the `server` side, the connection string is built from the same two variables.
+Compose fills them in from a file called **`.env`** — which does not exist yet.
+
+### Three files, three jobs
+
+| File | In git? | Purpose |
+|---|---|---|
+| `.env.example` | **yes** | The *names* of the variables and safe placeholder values. A teammate reads this to learn what to set. |
+| `.env` | **never** — see `.gitignore` | *Your* values. The real password. |
+| `docker-compose.yml` | yes | References the variables. Contains no secret. |
+
+Make yours:
+
+```
+cp .env.example .env
+```
+
+then open `.env` and change `change_me` to anything else. Check what git thinks:
+
+```
+git status
+```
+
+`.env` does not appear. It is in `.gitignore`, so it cannot be committed by accident —
+which is the whole point. A password in a git history is public forever, even after you
+delete it, because the history keeps every version. *This* is what was wrong in Example 5.
+
+### Why it still worked before you made `.env`
+
+Look at the syntax again: `${MONGO_PASSWORD:-change_me}`. The part after `:-` is a
+**default**, used when the variable is not set. That is why the example ran on a bare clone
+in part A. It is also exactly what you would be shipping to production if you forgot to set
+the real value — so the default is chosen to be obviously wrong.
+
+### The gotcha — and you have seen it before
+
+Change the password in `.env` and restart:
+
+```
+docker compose up -d
+docker compose logs server
+```
+
+```
+MongoServerError: Authentication failed.
+```
+
+Mongo **created the user the first time its data volume was empty, and only then.** Your
+new password is in `.env`, but the user in the database still has the old one. This is
+Example 2C again — `init.sql` did not re-run either — and it has the same fix:
+
+```
+docker compose down -v
+docker compose watch
+```
+
+Nine out of ten "I changed the password and now nothing works" problems are this.
+
+### What this buys you
+
+Homework 1 requires this pattern and checks for it: a `.env.example` committed, `.env`
+ignored, no password in `docker-compose.yml`, and `git log -p` containing no `.env`. A
+committed password is a zero on that task — not because the rule is strict, but because
+the mistake is permanent.
+
+## E — The commands you will actually use
+
+```
+docker compose watch          # start, and sync your edits as you work
+docker compose up -d          # start in the background, no watching
+docker compose ps             # what is running, and is it healthy
+docker compose logs -f mongo  # follow one service's logs
+docker compose exec server sh # get inside
+docker compose down           # stop and remove containers -- KEEPS the volume
+docker compose down -v        # ... and delete the volume too (also how a new password takes effect -- D)
+```
+
+`down` versus `down -v` is Example 2's lesson again. Your visitors are in the
+`mongo_data` volume; `down` keeps them, `down -v` does not. Prove it.
+
+## Clean up
+
+```
+docker compose down -v
+```
+
+`.env` is yours and gitignored; leave it or delete it, git will not notice either way.
+
+Open the Docker AI, and have it explain the Docker Compose file to you.
+
+"Can you explain this docker compose file to me?"
+
+"Can you identify security issues with this Docker setup?"
+
+Notice what it does *not* flag: there is no password in the file for it to find. Ask it
+the same question about Example 5's `index.php` and compare.

@@ -108,7 +108,7 @@ The client greets you with this, and every non-interactive `mysql` command will 
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ```
 
-It is right, and you will see it all semester. In a real deployment the password comes from a secrets manager, not from your shell history — Example 6 takes one step in that direction.
+It is right, and you will see it all semester. In a real deployment the password comes from a secrets manager, not from your shell history — Homework 1 takes one step in that direction with a `.env` file.
 
 ### The shortcut
 
@@ -172,7 +172,7 @@ docker volume rm db1_data
 
 ## What you should be able to answer
 
-Talk these through as you go. The three on `ANSWERS-tue.md` are drawn from them — you do not write up all of these.
+Talk these through as you go. Nothing is handed in.
 
 1. What is the difference between an image and a container?
 2. Why did `-p 3306:3306` have to be there for part C but not for part B?
